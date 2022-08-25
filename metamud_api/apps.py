@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
 
-class MetamudbackendConfig(AppConfig):
+class MetamudApiConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'metamudbackend'
+    name = 'metamud_api'
