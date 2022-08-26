@@ -1,8 +1,16 @@
 from django.urls import path
 from .views import (
-    SwordListApiView,
+    PostCommentListApiView,
+    PostLikeListApiView,
+    PostListApiView,
+    PostShareListApiView,
+    SinglePostListApiView,
 )
 
 urlpatterns = [
-    path('sword', SwordListApiView.as_view()),
+    path('post', PostListApiView.as_view()),
+    path('post/<int:id>', SinglePostListApiView.as_view()),
+    path('postshare', PostShareListApiView.as_view()),
+    path('postlike', PostLikeListApiView.as_view()),
+    path('postcomment', PostCommentListApiView.as_view())
 ]
