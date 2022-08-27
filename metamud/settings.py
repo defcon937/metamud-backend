@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-wti$8-2c46mcw-((@(@u29esmzix*f3*nyg-)j0z&pyb*gx9vj
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['108.61.75.19']
+ALLOWED_HOSTS = ['metamud.loganrickert.com', 'metamud.dev']
 
 
 # Application definition

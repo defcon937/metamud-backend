@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Post, PostComment, PostLike, PostShare, CommentLike
+from .models import Post, PostComment, PostLike, PostShare, CommentLike, HashtagFollow, Character
 from django.contrib.auth.models import User
 from rest_framework.validators import UniqueValidator
 from django.contrib.auth.password_validation import validate_password
@@ -59,6 +59,16 @@ class PostLikeSerializer(serializers.ModelSerializer):
 class CommentLikeSerializer(serializers.ModelSerializer):
     class Meta:
         model = CommentLike
+        fields = ("__all__")
+
+class HashtagFollowSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HashtagFollow
+        fields = ("__all__")
+
+class CharacterSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Character
         fields = ("__all__")
 
 class GETPostSerializer(serializers.ModelSerializer):

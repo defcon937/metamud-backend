@@ -14,6 +14,7 @@ class Post(models.Model):
     action_health = models.IntegerField(default=0)
     action_weapon = models.CharField(blank = True, max_length=255)
     action_damage = models.CharField(blank = True, max_length=255)
+    location = models.CharField(blank = True, max_length=255)
 
     def __str__(self):
         return self.body
@@ -35,6 +36,7 @@ class PostComment(models.Model):
     user = models.ForeignKey(User, on_delete = models.CASCADE, blank = True, null = True)
     post = models.ForeignKey(Post, on_delete = models.CASCADE, blank = True, null = True, related_name="comments")
     action = models.CharField(blank = True, max_length=255)
+    location = models.CharField(blank = True, max_length=255)
 
     def __str__(self):
         return self.comment
@@ -54,6 +56,14 @@ class CommentLike(models.Model):
 
     def __str__(self):
         return str(self.timestamp)
+
+class HashtagFollow(models.Model):
+    timestamp = models.DateTimeField(auto_now_add = True, auto_now = False, blank = True)
+    user = models.ForeignKey(User, on_delete = models.CASCADE, blank = True, null = True)
+    hashtag = models.CharField(max_length=255)
+
+    def __str__(self):
+        return str(self.hashtag)
 
 class Character(models.Model):
     name = models.CharField(max_length=255)

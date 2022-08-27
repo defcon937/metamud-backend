@@ -3,8 +3,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework import permissions
 from yaml import serialize
-from .models import Post, PostComment, PostLike, PostShare, CommentLike
-from .serializers import RegisterSerializer, CommentLikeSerializer, GETPostCommentSerializer, GETPostSerializer, POSTPostCommentSerializer, POSTPostSerializer, PostAndCommentsSerializer, PostLikeSerializer, PostShareSerializer
+from .models import Post, PostComment, PostLike, PostShare, CommentLike, HashtagFollow, Character
+from .serializers import RegisterSerializer, CommentLikeSerializer, CharacterSerializer, HashtagFollowSerializer, GETPostCommentSerializer, GETPostSerializer, POSTPostCommentSerializer, POSTPostSerializer, PostAndCommentsSerializer, PostLikeSerializer, PostShareSerializer
 from django.contrib.auth.models import User
 from rest_framework import generics
 import random
@@ -43,6 +43,27 @@ class PostListApiView(APIView):
         serializer = GETPostSerializer(posts, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    # 1. List all
+    def post(self, request, *args, **kwargs):
+        '''
+        List all the todo items for given requested user
+        '''
+        posts = None
+
+        hashtags = request.data.get('hashtags')
+
+        if hashtags:
+            posts = Post.objects.select_related().filter(hashtag__in=hashtags)
+            print("Hashtag in kwards")
+        else:
+            posts = Post.objects.select_related().all()
+            print("Hashtag NOT in kwards")
+
+        posts = posts.order_by('-id')[:20]
+
+        serializer = GETPostSerializer(posts, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 class SinglePostListApiView(APIView):
     # add permission to check if user is authenticated
     permission_classes = [permissions.IsAuthenticated]
@@ -52,7 +73,7 @@ class SinglePostListApiView(APIView):
         '''
         List all the todo items for given requested user
         '''
-        posts = Post.objects.select_related().filter(id=kwargs["id"])
+        posts = Post.objects.select_related().filter(id=kwargs["pk"])
 
         serializer = PostAndCommentsSerializer(posts, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -77,6 +98,43 @@ class SinglePostListApiView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         else:
             print(serializer.errors)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    # 2. Create
+    def patch(self, request, *args, **kwargs):
+        '''
+        Create the Todo with given todo data
+        '''
+        data = {
+            'key': charfilterl(request.data.get('key')),
+            'value': request.data.get('value').strip(),
+            'user': request.user.id
+        }
+
+        serializer = None
+
+        if data['key'] in ['location']:
+            instance = Post.objects.get(id=kwargs["pk"])
+
+            if instance.user.id == request.user.id:
+                new_data = {}
+                new_data[data['key']] = data['value']
+
+                serializer = POSTPostSerializer(instance=instance,
+                                                data=new_data, # or request.data
+                                                context={'author': request.user},
+                                                partial=True)
+                
+                print("Serialized", serializer)
+
+                if serializer.is_valid():
+                    serializer.save()
+                    return Response(serializer.data, status=status.HTTP_201_CREATED)
+                else:
+                    print(serializer.errors)
+        else:
+            print("Key not found", data['key'])
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -222,6 +280,38 @@ class PostCommentListApiView(APIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    # 2. Create
+    def patch(self, request, *args, **kwargs):
+        '''
+        Create the Todo with given todo data
+        '''
+        data = {
+            'key': charfilterl(request.data.get('key')),
+            'value': request.data.get('value').strip(),
+            'user': request.user.id
+        }
+
+        serializer = None
+
+        if data['key'] in ['location']:
+            instance = PostComment.objects.get(id=kwargs["pk"])
+            
+            if instance.user.id == request.user.id:
+                new_data = {}
+                new_data[data['key']] = data['value']
+
+                serializer = POSTPostCommentSerializer(instance=instance,
+                                                data=new_data, # or request.data
+                                                context={'author': request.user},
+                                                partial=True)
+                if serializer.is_valid():
+                    serializer.save()
+                    return Response(serializer.data, status=status.HTTP_201_CREATED)
+                else:
+                    print(serializer.errors)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 class CommentRollListApiView(APIView):
     # 2. Create
     def post(self, request, *args, **kwargs):
@@ -246,7 +336,7 @@ class CommentRollListApiView(APIView):
         ]
 
         if dice_count > 0 and dice_size > 1:
-            data["comment"] = "Rolled a {} ({}) with a D{}".format(", ".join(
+            data["comment"] = "Rolled a {} ({}) with a D{}.".format(", ".join(
                 [str(r) for r in rolls]), sum(rolls), dice_size)
             data["action"] = "Rolled"
 
@@ -287,16 +377,23 @@ class CommentAttackListApiView(APIView):
         damage_dealt = sum(rolls)
 
         if post and dice_count > 0 and dice_size > 1:
+            takes_damage = post.action_health > 0
             post.action_health = post.action_health-damage_dealt
 
             comment = request.data.get('comment').strip()
+            health_remaining = "\r\n\r\n{} has {} health left!".format(post.action_name, post.action_health)
 
             if comment:
                 comment = "\r\n\r\n{}".format(comment)
+            
+            if not takes_damage:
+                health_remaining = ""
+            elif takes_damage and post.action_health <= 0:
+                health_remaining = "\r\n\r\n{} has been defeated!".format(post.action_name)
 
-            data["comment"] = "[Attacked for {} ({}) with a D{}]{}\r\n\r\n{}".format(", ".join(
-                [str(r) for r in rolls]), damage_dealt, dice_size, comment,
-                "{} has {} health left!".format(post.action_name, post.action_health))
+            data["comment"] = "[Attacked for {} ({}) with a D{}]{}{}".format(", ".join(
+                [str(r) for r in rolls]), damage_dealt, dice_size, comment, health_remaining
+                )
             data["action"] = "Attacked"
 
             serializer = POSTPostCommentSerializer(data=data)
@@ -334,6 +431,41 @@ class CommentLikeListApiView(APIView):
         serializer = CommentLikeSerializer(data=data)
 
         if serializer.is_valid() and not existing_post:
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            print(serializer.errors)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class HashtagFollowListApiView(APIView):
+    # add permission to check if user is authenticated
+    permission_classes = [permissions.IsAuthenticated]
+
+    # 1. List all
+    def get(self, request, *args, **kwargs):
+        '''
+        List all the todo items for given requested user
+        '''
+        following = HashtagFollow.objects.filter(user=request.user.id)
+        serializer = HashtagFollowSerializer(following, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    # 2. Create
+    def post(self, request, *args, **kwargs):
+        '''
+        Create the Todo with given todo data
+        '''
+        data = {
+            'hashtag': charfilterl(request.data.get('hashtag')),
+            'user': request.user.id
+        }
+
+        existing_follow = HashtagFollow.objects.filter(user=data['user']).filter(hashtag=data['hashtag'])
+
+        serializer = HashtagFollowSerializer(data=data)
+
+        if serializer.is_valid() and not existing_follow:
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         else:
