@@ -2,3 +2,4 @@ django-cors-headers
 django
 django_rest_framework
 django-filter
+djangorestframework-simplejwt
